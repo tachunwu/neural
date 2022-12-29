@@ -1,0 +1,1 @@
+jetstream: ./../../nats-server -c jetstream.conf -V

@@ -1,0 +1,3 @@
+cluster-0: ./../../nats-server -c cluster-0.conf
+cluster-1: ./../../nats-server -c cluster-1.conf
+cluster-2: ./../../nats-server -c cluster-2.conf

@@ -1,0 +1,3 @@
+shard-0: ./../../nats-server -c shard-0.conf
+shard-1: ./../../nats-server -c shard-1.conf
+shard-2: ./../../nats-server -c shard-2.conf
