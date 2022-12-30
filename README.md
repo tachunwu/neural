@@ -8,6 +8,7 @@
 ## Synchronous Request
 <!-- --------------------------------------------------------------------------------------------------------- -->
 ## Vectored I/O
+![](https://github.com/tachunwu/neural/blob/main/doc/img/vectored%20i_o.png)
 <!-- --------------------------------------------------------------------------------------------------------- -->
 ## Distirbuted Concurrency Control
 ### Objective
@@ -39,6 +40,10 @@ goreman start
 goreman start
 ```
 首先 Server 會建立兩個 Consumer(ConsumerA, ConsumerB) 分別模擬兩個服務，會用 Pull 的方式消化 Calvin 這個 Subject 的 Transaction。Client 會先配一個 UUID 放入 message Header，等下游處理完畢之後會將 commit 發送回去 Coordinator，等收到所有參與服務的 commit message 就意味著完成。
+  
+![](https://github.com/tachunwu/neural/blob/main/doc/img/calvin.png)  
+
+上圖分別描述了 Request 和 Commit 的行為，原始論文中有提到如何 Scale Sequencer 的做法，我們可以將 Transaction Queue Sharding，下游服務則用 Round-Robin 的方式分別從各個 Shard Pull Transaction 來執行。 
 
 ### Result
 這個例子的 Transaction Id 是 ```xrf0f0IWJBhQTYrZAIYFrP```，client 會發起訂閱 ```Calvin.{transaction_id}``` 也就是 ```Calvin.xrf0f0IWJBhQTYrZAIYFrP``` 所以我們可以看到有兩個 Coordinator commit 的訊息。
