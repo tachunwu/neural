@@ -8,6 +8,11 @@
 ## Synchronous Request
 <!-- --------------------------------------------------------------------------------------------------------- -->
 ## Vectored I/O
+### Objective
+Vectored I/O 算是 Pub/Sub 的一種應用，我們會將 Request 用廣播的方式發送出去，然後下游所有 Worker 可以平行處理，等我們收集到需要的結果就可以直接回傳。應用範圍可以是有 Sharding 過後的 Search Service
+
+
+
 ![](https://github.com/tachunwu/neural/blob/main/doc/img/vectored%20i_o.png)
 <!-- --------------------------------------------------------------------------------------------------------- -->
 ## Distirbuted Concurrency Control
@@ -61,6 +66,13 @@ goreman start
 
 <!-- --------------------------------------------------------------------------------------------------------- -->
 ## HA Writer
+### Objective
+HA Writer 的目標是將 Command 轉換成 Event 然後寫到下游的系統中，廣泛用在 Middleware 之類的應用之上。
+### Implementation
+實作的方式會用到 JetStream 的 Queue，為了達到 HA 我們會分配 Worker Pool 來達到 HA，同時之間我們需要保有寫如的順序性，所以我們要把 MaxAckPending 設為 1，這樣前一個訊息沒有處理完成之前，下一個就不能處裡。注意，這裡指的是邏輯上的順序，可以是整個 Database 或是 Table 甚至可以是 Row-Level (藉由 Entity ID)。
+
+
+
 <!-- --------------------------------------------------------------------------------------------------------- -->
 ## Application Level Sharding (Notion-based Method)
 <!-- --------------------------------------------------------------------------------------------------------- -->
@@ -89,6 +101,86 @@ Stream 本身可以視為一個 Table 的概念，我們紀錄了它所有的 ev
 * Workflow-based: <Entity>.<verb+ed>
 * Table-based: <Entity>.<Primary-Key>.<verb+ed>
 
+
+# NATS SDK
+## Stream
+```
+type StreamConfig struct {
+	Name                 string          `json:"name"`
+	Description          string          `json:"description,omitempty"`
+	Subjects             []string        `json:"subjects,omitempty"`
+	Retention            RetentionPolicy `json:"retention"`
+	MaxConsumers         int             `json:"max_consumers"`
+	MaxMsgs              int64           `json:"max_msgs"`
+	MaxBytes             int64           `json:"max_bytes"`
+	Discard              DiscardPolicy   `json:"discard"`
+	DiscardNewPerSubject bool            `json:"discard_new_per_subject,omitempty"`
+	MaxAge               time.Duration   `json:"max_age"`
+	MaxMsgsPerSubject    int64           `json:"max_msgs_per_subject"`
+	MaxMsgSize           int32           `json:"max_msg_size,omitempty"`
+	Storage              StorageType     `json:"storage"`
+	Replicas             int             `json:"num_replicas"`
+	NoAck                bool            `json:"no_ack,omitempty"`
+	Template             string          `json:"template_owner,omitempty"`
+	Duplicates           time.Duration   `json:"duplicate_window,omitempty"`
+	Placement            *Placement      `json:"placement,omitempty"`
+	Mirror               *StreamSource   `json:"mirror,omitempty"`
+	Sources              []*StreamSource `json:"sources,omitempty"`
+	Sealed               bool            `json:"sealed,omitempty"`
+	DenyDelete           bool            `json:"deny_delete,omitempty"`
+	DenyPurge            bool            `json:"deny_purge,omitempty"`
+	AllowRollup          bool            `json:"allow_rollup_hdrs,omitempty"`
+
+	// Allow republish of the message after being sequenced and stored.
+	RePublish *RePublish `json:"republish,omitempty"`
+
+	// Allow higher performance, direct access to get individual messages. E.g. KeyValue
+	AllowDirect bool `json:"allow_direct"`
+	// Allow higher performance and unified direct access for mirrors as well.
+	MirrorDirect bool `json:"mirror_direct"`
+}
+```
+## Consumer
+```
+type ConsumerConfig struct {
+	Durable         string          `json:"durable_name,omitempty"`
+	Name            string          `json:"name,omitempty"`
+	Description     string          `json:"description,omitempty"`
+	DeliverPolicy   DeliverPolicy   `json:"deliver_policy"`
+	OptStartSeq     uint64          `json:"opt_start_seq,omitempty"`
+	OptStartTime    *time.Time      `json:"opt_start_time,omitempty"`
+	AckPolicy       AckPolicy       `json:"ack_policy"`
+	AckWait         time.Duration   `json:"ack_wait,omitempty"`
+	MaxDeliver      int             `json:"max_deliver,omitempty"`
+	BackOff         []time.Duration `json:"backoff,omitempty"`
+	FilterSubject   string          `json:"filter_subject,omitempty"`
+	ReplayPolicy    ReplayPolicy    `json:"replay_policy"`
+	RateLimit       uint64          `json:"rate_limit_bps,omitempty"` // Bits per sec
+	SampleFrequency string          `json:"sample_freq,omitempty"`
+	MaxWaiting      int             `json:"max_waiting,omitempty"`
+	MaxAckPending   int             `json:"max_ack_pending,omitempty"`
+	FlowControl     bool            `json:"flow_control,omitempty"`
+	Heartbeat       time.Duration   `json:"idle_heartbeat,omitempty"`
+	HeadersOnly     bool            `json:"headers_only,omitempty"`
+
+	// Pull based options.
+	MaxRequestBatch    int           `json:"max_batch,omitempty"`
+	MaxRequestExpires  time.Duration `json:"max_expires,omitempty"`
+	MaxRequestMaxBytes int           `json:"max_bytes,omitempty"`
+
+	// Push based consumers.
+	DeliverSubject string `json:"deliver_subject,omitempty"`
+	DeliverGroup   string `json:"deliver_group,omitempty"`
+
+	// Inactivity threshold.
+	InactiveThreshold time.Duration `json:"inactive_threshold,omitempty"`
+
+	// Generally inherited by parent stream and other markers, now can be configured directly.
+	Replicas int `json:"num_replicas"`
+	// Force memory storage.
+	MemoryStorage bool `json:"mem_storage,omitempty"`
+}
+```
 
 # Clean Architecture
 雖然我們使用 NATS 作為基礎設施，但是還是希望能夠 Decouple。
